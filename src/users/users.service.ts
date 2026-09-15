@@ -35,7 +35,8 @@ export class UsersService {
   }
 
   // Internal method for AuthModule - returns the raw Prisma object including the password hash
-  async findForAuth(email: string) {
-    return db.orm.public.User.where({ email }).first();
+  async findForAuth(email: string): Promise<(UserEntity & { password: string }) | null> {
+    const user = await db.orm.public.User.where({ email }).first();
+    return user as (UserEntity & { password: string }) | null;
   }
 }

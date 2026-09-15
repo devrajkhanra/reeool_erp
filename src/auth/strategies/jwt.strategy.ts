@@ -13,7 +13,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'fallback-dev-secret'),
+      // No insecure default here: JWT_SECRET is required and validated at
+      // startup (see src/config/validation.schema.ts). Falling back to a
+      // hardcoded secret would let anyone forge valid tokens.
+      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 

@@ -19,15 +19,13 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
       global: true,
       middleware: {
         mount: true,
-        setup: (cls, req) => {
-          // Extract the organization ID from the headers
-          const organizationId = req.headers['x-organization-id'];
-          // Store it in the isolated request context
-          if (organizationId) {
-            cls.set('organizationId', organizationId);
-          }
-          // We can also generate an automatic request ID for logging here later!
-        },
+        // Do NOT seed organizationId from a client-supplied header here.
+        // This ran before the auth guard, so on any endpoint that skips
+        // authentication (@IsPublic()) an attacker could set an arbitrary
+        // x-organization-id header and have it trusted as tenant context.
+        // The only trustworthy source for organizationId is the verified
+        // JWT payload, which JwtStrategy.validate() sets after the token
+        // signature has actually been checked.
       },
     }),
     OrganizationsModule,
