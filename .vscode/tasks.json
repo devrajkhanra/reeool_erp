@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Validate organization updates",
+			"type": "shell",
+			"command": "C:\\Users\\Devraj Khanra\\AppData\\Roaming\\npm\\pnpm.cmd",
+			"args": [
+				"exec",
+				"vitest",
+				"run",
+				"src/organizations",
+				"--reporter=verbose"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build backend",
+			"type": "shell",
+			"command": "C:\\Users\\Devraj Khanra\\AppData\\Roaming\\npm\\pnpm.cmd",
+			"args": [
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

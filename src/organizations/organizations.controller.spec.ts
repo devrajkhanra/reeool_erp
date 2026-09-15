@@ -16,7 +16,8 @@ describe('OrganizationsController', () => {
           provide: OrganizationsService,
           useValue: {
             create: vi.fn(),
-            findAll: vi.fn(),
+            findMine: vi.fn(),
+            update: vi.fn(),
           },
         },
       ],
@@ -27,5 +28,33 @@ describe('OrganizationsController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('loads the authenticated user organization', async () => {
+    const organization = { id: 'organization-id', name: 'Acme' };
+    vi.spyOn(controller['organizationsService'], 'findMine').mockResolvedValue(
+      organization as never,
+    );
+
+    await expect(
+      controller.findMine({ user: { userId: 'user-id' } } as never),
+    ).resolves.toEqual(organization);
+    expect(controller['organizationsService'].findMine).toHaveBeenCalledWith('user-id');
+  });
+
+  it('updates the authenticated user organization', async () => {
+    const updateDto = { name: 'Acme Corporation' };
+    const organization = { id: 'organization-id', ...updateDto };
+    vi.spyOn(controller['organizationsService'], 'update').mockResolvedValue(
+      organization as never,
+    );
+
+    await expect(
+      controller.update(updateDto, { user: { userId: 'user-id' } } as never),
+    ).resolves.toEqual(organization);
+    expect(controller['organizationsService'].update).toHaveBeenCalledWith(
+      updateDto,
+      'user-id',
+    );
   });
 });

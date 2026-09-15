@@ -1,5 +1,6 @@
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { OrganizationEntity } from './entities/organization.entity';
 import { db } from '../prisma/db'; 
 
@@ -36,9 +37,44 @@ export class OrganizationsService {
     }
   }
 
-  // Add explicit Promise<OrganizationEntity[]> return type
-  async findAll(): Promise<OrganizationEntity[]> {
-    const organizations = await db.orm.public.Organization.all();
-    return organizations as OrganizationEntity[];
+  async findMine(founderId: string): Promise<OrganizationEntity> {
+    const user = await db.orm.public.User.where({ id: founderId }).first();
+    if (!user?.organizationId) {
+      throw new NotFoundException('The user does not belong to an organization.');
+    }
+
+    const organization = await db.orm.public.Organization.where({
+      id: user.organizationId,
+    }).first();
+    if (!organization) {
+      throw new NotFoundException('Organization not found.');
+    }
+
+    return organization as OrganizationEntity;
+  }
+
+  async update(
+    updateOrganizationDto: UpdateOrganizationDto,
+    userId: string,
+  ): Promise<OrganizationEntity> {
+    const user = await db.orm.public.User.where({ id: userId }).first();
+    if (!user?.organizationId) {
+      throw new NotFoundException('The user does not belong to an organization.');
+    }
+    if (user.role !== 'OWNER') {
+      throw new ForbiddenException('Only the organization owner can update details.');
+    }
+
+    try {
+      const organization = await db.orm.public.Organization.where({
+        id: user.organizationId,
+      }).update(updateOrganizationDto);
+      return organization as OrganizationEntity;
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('An organization with this slug already exists.');
+      }
+      throw error;
+    }
   }
 }
