@@ -1,6 +1,7 @@
 allowBuilds:
   '@scarf/scarf': true
   '@swc/core': false
+  argon2: true
   esbuild: false
   msgpackr-extract: false
   workerd: false
