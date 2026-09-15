@@ -1,0 +1,14 @@
+// use prisma-8
+
+model Organization {
+  id          Uuid     @id @default(uuid())
+  name        String
+  slug        String   @unique 
+  taxId       String?  
+  settings    Json?    
+  isActive    Boolean  @default(true)
+  
+  // Strict Prisma 8 syntax for timestamps (returns as strings instead of Temporal objects)
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+}
