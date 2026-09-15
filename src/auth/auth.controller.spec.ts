@@ -15,6 +15,7 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: {
+            register: vi.fn(),
             login: vi.fn(),
           },
         },
@@ -26,5 +27,19 @@ describe('AuthController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('registers a user through AuthService', async () => {
+    const registerDto = {
+      email: 'founder@example.com',
+      password: 'correct horse battery staple',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+    };
+    const registeredUser = { id: 'user-id', ...registerDto };
+    vi.spyOn(controller['authService'], 'register').mockResolvedValue(registeredUser as never);
+
+    await expect(controller.register(registerDto)).resolves.toEqual(registeredUser);
+    expect(controller['authService'].register).toHaveBeenCalledWith(registerDto);
   });
 });

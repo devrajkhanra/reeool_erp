@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -14,8 +15,14 @@ export class OrganizationsController {
   @ApiResponse({ status: 201, description: 'The organization has been successfully created.', type: OrganizationEntity })
   @ApiResponse({ status: 409, description: 'Slug already exists.' })
   // Add explicit Promise<OrganizationEntity> return type
-  async create(@Body() createOrganizationDto: CreateOrganizationDto): Promise<OrganizationEntity> {
-    return this.organizationsService.create(createOrganizationDto);
+  async create(
+    @Body() createOrganizationDto: CreateOrganizationDto,
+    @Req() request: Request,
+  ): Promise<OrganizationEntity> {
+    return this.organizationsService.create(
+      createOrganizationDto,
+      (request.user as { userId: string }).userId,
+    );
   }
 
   @Get()

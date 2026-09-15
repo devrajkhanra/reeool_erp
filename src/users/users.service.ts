@@ -7,14 +7,18 @@ import { UserEntity } from './entities/user.entity';
 export class UsersService {
   
   // Add explicit Promise<UserEntity> return type
-  async create(createUserDto: any, organizationId: string): Promise<UserEntity> {
+  async create(createUserDto: any, organizationId?: string): Promise<UserEntity> {
     try {
       const hashedPassword = await argon2.hash(createUserDto.password);
 
-      const user = await db.orm.public.User.create({
+      const userData = {
         ...createUserDto,
         password: hashedPassword,
-        organizationId: organizationId,
+        ...(organizationId ? { organizationId } : {}),
+      };
+
+      const user = await db.orm.public.User.create({
+        ...userData,
       });
 
       const { password, ...safeUser } = user;

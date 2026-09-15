@@ -188,7 +188,7 @@
                 }
               },
               "organizationId": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -225,7 +225,7 @@
             "relations": {
               "organization": {
                 "cardinality": "N:1",
-                "nullable": false,
+                "nullable": true,
                 "on": {
                   "localFields": [
                     "organizationId"
@@ -406,7 +406,7 @@
                 "organizationId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "password": {
                   "codecId": "pg/text@1",
@@ -495,7 +495,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "178f57f8ea2aa5e724721b88be7ac17d47a6be359195b76ac077ccea754b8007"
+    "storageHash": "be8f73396e425e0a5eebd2eee861d8b939aaf3512e4a5dd9762372afb879a458"
   },
   "execution": {
     "executionHash": "562cd8102ece302fef0ecdcd146e80b67848b9e09efa88b171a0bc48befda13e",

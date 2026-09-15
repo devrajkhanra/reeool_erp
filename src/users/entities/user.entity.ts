@@ -20,7 +20,7 @@ export class UserEntity {
   isActive: boolean;
 
   @ApiProperty()
-  organizationId: string;
+  organizationId: string | null;
 
   @ApiProperty()
   createdAt: string;
