@@ -1,4 +1,6 @@
 allowBuilds:
+  '@scarf/scarf': true
+  '@swc/core': false
   esbuild: false
   msgpackr-extract: false
   workerd: false
