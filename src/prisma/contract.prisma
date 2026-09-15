@@ -1,14 +1,39 @@
-// use prisma-8
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
 
 model Organization {
-  id          Uuid     @id @default(uuid())
-  name        String
-  slug        String   @unique 
-  taxId       String?  
-  settings    Json?    
-  isActive    Boolean  @default(true)
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  taxId     String?
+  settings  Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
   
-  // Strict Prisma 8 syntax for timestamps (returns as strings instead of Temporal objects)
-  createdAt   TimestamptzString @default(now())
-  updatedAt   temporal.updatedAtString()
+  // A single organization has many users
+  users     User[]
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  password       String       // Will store the Argon2 hash
+  firstName      String
+  lastName       String
+  role           Role         @default(MEMBER)
+  isActive       Boolean      @default(true)
+  
+  // The critical multi-tenant link
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  // Ensure an email is only unique within the system (or make it unique per organization if desired)
+  @@index([organizationId])
 }
