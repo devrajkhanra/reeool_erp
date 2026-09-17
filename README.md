@@ -1,114 +1,355 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+﻿# Reeool ERP API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS backend for the Reeool ERP platform, built around JWT authentication and organization-scoped tenant access.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Overview
 
-## Description
+This service exposes the core API for:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- user registration and login
+- organization creation and management
+- authenticated access using JWT bearer tokens
+- tenant context propagation via verified JWT claims
 
-## Project setup
+The API is served by NestJS and exposes Swagger documentation at:
+
+- http://localhost:3000/api/docs
+
+## Tech stack
+
+- NestJS
+- TypeScript
+- Prisma ORM
+- PostgreSQL-compatible database
+- JWT authentication with Passport
+- Swagger/OpenAPI
+- class-validator and class-transformer
+
+## Requirements
+
+Before starting the API, make sure you have:
+
+- Node.js 20+
+- pnpm installed
+- a PostgreSQL-compatible database available
+- environment variables configured
+
+## Environment variables
+
+Create a `.env` file in the project root with values similar to:
 
 ```bash
-$ pnpm install
+DATABASE_URL="postgresql://user:password@localhost:5432/reeool_erp"
+JWT_SECRET="replace-this-with-a-long-random-secret-at-least-32-chars"
+JWT_EXPIRES_IN="1d"
+PORT=3000
+NODE_ENV="development"
 ```
 
-## Compile and run the project
+The application validates these values at startup using Joi, and it refuses to boot if `DATABASE_URL` or `JWT_SECRET` are missing or invalid.
+
+## Installation
+
+```bash
+pnpm install
+```
+
+## Run locally
 
 ```bash
 # development
-$ pnpm run start
+pnpm run start
 
 # watch mode
-$ pnpm run start:dev
+pnpm run start:dev
 
-# production mode
-$ pnpm run start:prod
+# production build
+pnpm run build
+pnpm run start:prod
 ```
 
-## Run tests
+## API documentation
+
+Once the app is running, view the generated Swagger docs here:
+
+```text
+http://localhost:3000/api/docs
+```
+
+## Authentication model
+
+The entire API is protected by a global JWT guard unless a route explicitly marks itself as public.
+
+- Public endpoints: `/auth/register`, `/auth/login`
+- Protected endpoints: all other routes
+- Authorization header format:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+The JWT payload includes:
+
+```json
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "role": "OWNER",
+  "organizationId": "organization-id"
+}
+```
+
+The verified `organizationId` is stored in request context and used for tenant-aware access.
+
+## Endpoints
+
+### 1) Health
+
+#### GET /
+
+Returns a simple application greeting.
+
+Example response:
+
+```json
+{
+  "message": "Hello World!"
+}
+```
+
+---
+
+### 2) Authentication
+
+#### POST /auth/register
+
+Creates a new user account.
+
+Public access.
+
+Request body:
+
+```json
+{
+  "email": "founder@example.com",
+  "password": "password123",
+  "firstName": "Ada",
+  "lastName": "Lovelace"
+}
+```
+
+Validation rules:
+
+- `email`: valid email, required
+- `password`: string, minimum 8 characters, required
+- `firstName`: string, required
+- `lastName`: string, required
+
+Success response: `201 Created`
+
+```json
+{
+  "id": "user-id",
+  "email": "founder@example.com",
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "role": "OWNER",
+  "isActive": true,
+  "organizationId": null,
+  "createdAt": "2026-09-17T00:00:00.000Z",
+  "updatedAt": "2026-09-17T00:00:00.000Z"
+}
+```
+
+Possible errors:
+
+- `409 Conflict`: a user with the same email already exists
+
+#### POST /auth/login
+
+Authenticates a user and returns a JWT.
+
+Public access.
+
+Request body:
+
+```json
+{
+  "email": "founder@example.com",
+  "password": "password123"
+}
+```
+
+Success response: `200 OK`
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+Possible errors:
+
+- `401 Unauthorized`: invalid credentials
+
+---
+
+### 3) Organizations
+
+All organization routes require authentication.
+
+#### POST /organizations
+
+Creates a new organization for the currently authenticated user.
+
+Requires `Authorization: Bearer <token>`.
+
+Request body:
+
+```json
+{
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "taxId": "US123456789"
+}
+```
+
+Validation rules:
+
+- `name`: string, required
+- `slug`: string, required; used as a URL-friendly identifier
+- `taxId`: optional string
+
+Success response: `201 Created`
+
+```json
+{
+  "id": "organization-id",
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "taxId": "US123456789",
+  "settings": null,
+  "isActive": true,
+  "createdAt": "2026-09-17T00:00:00.000Z",
+  "updatedAt": "2026-09-17T00:00:00.000Z"
+}
+```
+
+Behavior:
+
+- verifies the current user exists
+- rejects users who already belong to an organization
+- creates the organization
+- updates the founder user to `role: "OWNER"`
+- sets the founder's `organizationId`
+
+Possible errors:
+
+- `403 Forbidden`: only registered users may create an organization
+- `409 Conflict`: slug already exists or user already belongs to an organization
+
+#### GET /organizations
+
+Fetches the organization associated with the authenticated user.
+
+Requires `Authorization: Bearer <token>`.
+
+Success response: `200 OK`
+
+```json
+{
+  "id": "organization-id",
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "taxId": "US123456789",
+  "settings": null,
+  "isActive": true,
+  "createdAt": "2026-09-17T00:00:00.000Z",
+  "updatedAt": "2026-09-17T00:00:00.000Z"
+}
+```
+
+Possible errors:
+
+- `404 Not Found`: user is not attached to any organization
+
+#### PATCH /organizations
+
+Updates the authenticated user's organization details.
+
+Requires `Authorization: Bearer <token>`.
+
+Only organization owners may update the organization.
+
+Request body:
+
+```json
+{
+  "name": "Acme Corporation",
+  "slug": "acme-corporation",
+  "taxId": "US987654321"
+}
+```
+
+Any subset of fields may be sent.
+
+Success response: `200 OK`
+
+```json
+{
+  "id": "organization-id",
+  "name": "Acme Corporation",
+  "slug": "acme-corporation",
+  "taxId": "US987654321",
+  "settings": null,
+  "isActive": true,
+  "createdAt": "2026-09-17T00:00:00.000Z",
+  "updatedAt": "2026-09-17T12:00:00.000Z"
+}
+```
+
+Possible errors:
+
+- `403 Forbidden`: only the organization owner may update details
+- `404 Not Found`: user does not belong to an organization
+- `409 Conflict`: slug already exists
+
+---
+
+## Response conventions
+
+The app uses a global response transform interceptor, so successful responses are normalized and wrapped consistently before reaching the client.
+
+Errors are handled by a global HTTP exception filter and are returned in a NestJS-style structured format based on the thrown exception type.
+
+## Validation and security notes
+
+- All incoming request bodies are validated globally using `ValidationPipe({ whitelist: true, transform: true })`.
+- Unknown fields are stripped from payloads automatically.
+- JWT validation happens before protected routes are executed.
+- The app rejects booting without a strong `JWT_SECRET`.
+- Tenant context is injected only from the verified JWT, not from client headers.
+
+## Tests
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm test
+pnpm run test:e2e
+pnpm run test:cov
 ```
 
-## Deployment
+## Prisma contract and migrations
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+This project uses Prisma 8 contract-style configuration.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Useful commands:
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run contract:emit
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Migrations live in the `migrations/` folder and are part of the database lifecycle for this service.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is currently set to an unlicensed internal workspace setup and may be updated as the project matures.
