@@ -24,6 +24,114 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Reset local database",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"pnpm exec prisma db push --force-reset"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check database environment",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"where psql && where pg_isready && where pg_ctl && where postgres && net start | findstr /I postgres"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Inspect Prisma database commands",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"pnpm exec prisma --help"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Inspect Prisma DB operations",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"pnpm exec prisma db --help"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Clear application database data",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"node -e \"require('dotenv/config'); const { db } = require('./dist/prisma/db.js'); (async () => { const plan = db.raw.sql`TRUNCATE TABLE \\\"User\\\", \\\"Organization\\\" CASCADE`.affectedCount().build(); const result = await db.runtime().execute(plan); console.log(JSON.stringify(result)); await db.close(); })().catch(async (error) => { console.error(error); try { await db.close(); } catch {} process.exit(1); });\""
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run database reset utility",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"node scripts/reset-database.cjs"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Inspect live database tables",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"pnpm exec prisma db schema"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Reset application database data",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"node scripts/reset-database.cjs"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify database is empty",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"node scripts/reset-database.cjs"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }
