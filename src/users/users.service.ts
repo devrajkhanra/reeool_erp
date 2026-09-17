@@ -10,10 +10,12 @@ export class UsersService {
   async create(createUserDto: any, organizationId?: string): Promise<UserEntity> {
     try {
       const hashedPassword = await argon2.hash(createUserDto.password);
+      const role = organizationId ? 'MEMBER' : 'OWNER';
 
       const userData = {
         ...createUserDto,
         password: hashedPassword,
+        role,
         ...(organizationId ? { organizationId } : {}),
       };
 

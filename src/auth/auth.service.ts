@@ -13,7 +13,10 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    return this.usersService.create(registerDto);
+    return this.usersService.create({
+      ...registerDto,
+      role: 'OWNER',
+    });
   }
 
   async login(loginDto: LoginDto) {

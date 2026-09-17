@@ -1,42 +1,40 @@
 ﻿# Reeool ERP API
 
-A NestJS backend for the Reeool ERP platform, built around JWT authentication and organization-scoped tenant access.
+Production-grade NestJS backend for the Reeool ERP platform.
 
-## Overview
+## Architecture
 
-This service exposes the core API for:
+This service is structured around a strict multi-tenant model:
 
-- user registration and login
-- organization creation and management
-- authenticated access using JWT bearer tokens
-- tenant context propagation via verified JWT claims
+- all routes are protected by default via a global JWT guard
+- only explicitly public routes can be accessed without authentication
+- user identity is derived from the verified JWT payload
+- organization context is enforced from the token, not from client headers
+- users are created as founders by default during public registration, and then may later be invited or managed within an organization
 
-The API is served by NestJS and exposes Swagger documentation at:
+## Core rules
 
-- http://localhost:3000/api/docs
+1. Public registration creates a founder account with the `OWNER` role.
+2. Members are not allowed to self-register.
+3. Only authenticated users may create or manage organizations.
+4. A user may belong to at most one organization.
+5. Organization updates are restricted to the current owner.
+6. JWT claims carry `sub`, `email`, `role`, and `organizationId`.
 
 ## Tech stack
 
-- NestJS
+- NestJS 12
 - TypeScript
-- Prisma ORM
+- Prisma 8 contract-based ORM
 - PostgreSQL-compatible database
-- JWT authentication with Passport
+- Passport + JWT
 - Swagger/OpenAPI
-- class-validator and class-transformer
+- class-validator + class-transformer
+- Argon2 password hashing
 
-## Requirements
+## Environment
 
-Before starting the API, make sure you have:
-
-- Node.js 20+
-- pnpm installed
-- a PostgreSQL-compatible database available
-- environment variables configured
-
-## Environment variables
-
-Create a `.env` file in the project root with values similar to:
+Create a `.env` file:
 
 ```bash
 DATABASE_URL="postgresql://user:password@localhost:5432/reeool_erp"
@@ -46,31 +44,23 @@ PORT=3000
 NODE_ENV="development"
 ```
 
-The application validates these values at startup using Joi, and it refuses to boot if `DATABASE_URL` or `JWT_SECRET` are missing or invalid.
+Startup validation requires `DATABASE_URL` and `JWT_SECRET` to be present and valid.
 
-## Installation
+## Local setup
 
 ```bash
 pnpm install
+pnpm run start:dev
 ```
 
-## Run locally
+Production:
 
 ```bash
-# development
-pnpm run start
-
-# watch mode
-pnpm run start:dev
-
-# production build
 pnpm run build
 pnpm run start:prod
 ```
 
-## API documentation
-
-Once the app is running, view the generated Swagger docs here:
+Swagger UI:
 
 ```text
 http://localhost:3000/api/docs
@@ -78,38 +68,39 @@ http://localhost:3000/api/docs
 
 ## Authentication model
 
-The entire API is protected by a global JWT guard unless a route explicitly marks itself as public.
+Public routes:
 
-- Public endpoints: `/auth/register`, `/auth/login`
-- Protected endpoints: all other routes
-- Authorization header format:
+- `POST /auth/register`
+- `POST /auth/login`
+
+Protected routes:
+
+- all other endpoints
+
+Authorization header:
 
 ```http
 Authorization: Bearer <jwt>
 ```
 
-The JWT payload includes:
+JWT payload:
 
 ```json
 {
   "sub": "user-id",
-  "email": "user@example.com",
+  "email": "founder@example.com",
   "role": "OWNER",
   "organizationId": "organization-id"
 }
 ```
 
-The verified `organizationId` is stored in request context and used for tenant-aware access.
+## API reference
 
-## Endpoints
+### GET /
 
-### 1) Health
+Health check endpoint.
 
-#### GET /
-
-Returns a simple application greeting.
-
-Example response:
+Response:
 
 ```json
 {
@@ -117,15 +108,9 @@ Example response:
 }
 ```
 
----
+### POST /auth/register
 
-### 2) Authentication
-
-#### POST /auth/register
-
-Creates a new user account.
-
-Public access.
+Creates a new founder account. This route is public and intentionally assigns `role: "OWNER"`.
 
 Request body:
 
@@ -138,14 +123,13 @@ Request body:
 }
 ```
 
-Validation rules:
+Rules:
 
-- `email`: valid email, required
-- `password`: string, minimum 8 characters, required
-- `firstName`: string, required
-- `lastName`: string, required
+- `email` must be a valid email
+- `password` must be at least 8 characters
+- `firstName` and `lastName` are required
 
-Success response: `201 Created`
+Success response `201`:
 
 ```json
 {
@@ -161,15 +145,13 @@ Success response: `201 Created`
 }
 ```
 
-Possible errors:
+Errors:
 
 - `409 Conflict`: a user with the same email already exists
 
-#### POST /auth/login
+### POST /auth/login
 
-Authenticates a user and returns a JWT.
-
-Public access.
+Authenticates an existing user and returns a signed JWT.
 
 Request body:
 
@@ -180,7 +162,7 @@ Request body:
 }
 ```
 
-Success response: `200 OK`
+Success response `200`:
 
 ```json
 {
@@ -188,21 +170,15 @@ Success response: `200 OK`
 }
 ```
 
-Possible errors:
+Errors:
 
 - `401 Unauthorized`: invalid credentials
 
----
+### POST /organizations
 
-### 3) Organizations
+Creates a new organization for the authenticated user.
 
-All organization routes require authentication.
-
-#### POST /organizations
-
-Creates a new organization for the currently authenticated user.
-
-Requires `Authorization: Bearer <token>`.
+Authorization required.
 
 Request body:
 
@@ -214,47 +190,15 @@ Request body:
 }
 ```
 
-Validation rules:
-
-- `name`: string, required
-- `slug`: string, required; used as a URL-friendly identifier
-- `taxId`: optional string
-
-Success response: `201 Created`
-
-```json
-{
-  "id": "organization-id",
-  "name": "Acme Corp",
-  "slug": "acme-corp",
-  "taxId": "US123456789",
-  "settings": null,
-  "isActive": true,
-  "createdAt": "2026-09-17T00:00:00.000Z",
-  "updatedAt": "2026-09-17T00:00:00.000Z"
-}
-```
-
 Behavior:
 
-- verifies the current user exists
-- rejects users who already belong to an organization
+- validates that the requesting user exists
+- rejects users already attached to an organization
 - creates the organization
-- updates the founder user to `role: "OWNER"`
-- sets the founder's `organizationId`
+- sets the founder user to `OWNER`
+- attaches the organization to the founder
 
-Possible errors:
-
-- `403 Forbidden`: only registered users may create an organization
-- `409 Conflict`: slug already exists or user already belongs to an organization
-
-#### GET /organizations
-
-Fetches the organization associated with the authenticated user.
-
-Requires `Authorization: Bearer <token>`.
-
-Success response: `200 OK`
+Success response `201`:
 
 ```json
 {
@@ -269,19 +213,39 @@ Success response: `200 OK`
 }
 ```
 
-Possible errors:
+Errors:
 
-- `404 Not Found`: user is not attached to any organization
+- `403 Forbidden`: user cannot create an organization
+- `409 Conflict`: slug already exists or user already has an organization
 
-#### PATCH /organizations
+### GET /organizations
 
-Updates the authenticated user's organization details.
+Returns the organization bound to the authenticated user.
 
-Requires `Authorization: Bearer <token>`.
+Success response `200`:
 
-Only organization owners may update the organization.
+```json
+{
+  "id": "organization-id",
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "taxId": "US123456789",
+  "settings": null,
+  "isActive": true,
+  "createdAt": "2026-09-17T00:00:00.000Z",
+  "updatedAt": "2026-09-17T00:00:00.000Z"
+}
+```
 
-Request body:
+Errors:
+
+- `404 Not Found`: user is not attached to an organization
+
+### PATCH /organizations
+
+Updates the current organization. Only the owner can modify it.
+
+Request body example:
 
 ```json
 {
@@ -291,9 +255,7 @@ Request body:
 }
 ```
 
-Any subset of fields may be sent.
-
-Success response: `200 OK`
+Success response `200`:
 
 ```json
 {
@@ -308,27 +270,19 @@ Success response: `200 OK`
 }
 ```
 
-Possible errors:
+Errors:
 
-- `403 Forbidden`: only the organization owner may update details
+- `403 Forbidden`: only the organization owner may update it
 - `404 Not Found`: user does not belong to an organization
 - `409 Conflict`: slug already exists
 
----
+## Security and validation
 
-## Response conventions
-
-The app uses a global response transform interceptor, so successful responses are normalized and wrapped consistently before reaching the client.
-
-Errors are handled by a global HTTP exception filter and are returned in a NestJS-style structured format based on the thrown exception type.
-
-## Validation and security notes
-
-- All incoming request bodies are validated globally using `ValidationPipe({ whitelist: true, transform: true })`.
-- Unknown fields are stripped from payloads automatically.
-- JWT validation happens before protected routes are executed.
-- The app rejects booting without a strong `JWT_SECRET`.
-- Tenant context is injected only from the verified JWT, not from client headers.
+- requests are validated globally with `ValidationPipe({ whitelist: true, transform: true })`
+- unknown payload properties are stripped before processing
+- JWTs are verified before protected endpoints run
+- tenant context is only taken from the verified JWT payload
+- password hashes are stored using Argon2
 
 ## Tests
 
@@ -338,18 +292,14 @@ pnpm run test:e2e
 pnpm run test:cov
 ```
 
-## Prisma contract and migrations
-
-This project uses Prisma 8 contract-style configuration.
-
-Useful commands:
+## Prisma and migrations
 
 ```bash
 pnpm run contract:emit
 ```
 
-Migrations live in the `migrations/` folder and are part of the database lifecycle for this service.
+Migrations are stored under the `migrations/` directory and should be treated as part of the release process.
 
 ## License
 
-This project is currently set to an unlicensed internal workspace setup and may be updated as the project matures.
+This project is currently configured as internal/internal workspace code and does not declare a public license yet.
